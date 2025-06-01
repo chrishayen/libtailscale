@@ -289,6 +289,14 @@ impl TSNet {
         Ok(conn_out)
     }
 
+    pub fn close_fd(fd: i32) -> Result<(), String> {
+        let result = unsafe { libc::close(fd) };
+        if result != 0 {
+            return Err(tailscale_error_msg(fd)?);
+        }
+        Ok(())
+    }
+
     /// Returns the remote address (either ip4 or ip6)
     /// for an incoming connection for a particular listener.
     /// ```
@@ -540,12 +548,4 @@ fn tailscale_error_msg(server: TailscaleBinding) -> Result<String, String> {
 
     let message = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
     Ok(message.to_str().unwrap().to_string())
-}
-
-pub fn close_fd(fd: i32) -> Result<(), String> {
-    let result = unsafe { libc::close(fd) };
-    if result != 0 {
-        return Err(tailscale_error_msg(fd)?);
-    }
-    Ok(())
 }
