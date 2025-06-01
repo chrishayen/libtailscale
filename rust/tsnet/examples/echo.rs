@@ -15,7 +15,7 @@ fn main() -> Result<(), String> {
 
     loop {
         let conn = ts.accept(listener).unwrap();
-        let mut stream = unsafe { TcpStream::from_raw_fd(conn) };
+        let mut stream = unsafe { TcpStream::from_raw_fd(conn.fd) };
         let remote_addr = ts.get_remote_addr(conn, listener).unwrap();
         let mut buf = [0; 1024];
 

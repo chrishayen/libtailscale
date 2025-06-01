@@ -25,7 +25,15 @@ type TailscaleListener = i32;
 /// A TailscaleConnection is a connection to an address on the tailnet.
 ///
 /// It is a pipe(2) on which you can use read(2), write(2), and close(2).
-pub type TailscaleConnection = i32;
+pub struct TailscaleConnection {
+    pub fd: i32,
+}
+
+impl Drop for TailscaleConnection {
+    fn drop(&mut self) {
+        unsafe { libc::close(self.fd) };
+    }
+}
 
 /// Represents a Tailscale server instance
 pub struct TSNet {
@@ -278,7 +286,7 @@ impl TSNet {
             return Err(tailscale_error_msg(self.server)?);
         }
 
-        Ok(conn_out)
+        Ok(TailscaleConnection { fd: conn_out })
     }
 
     /// Connects to the address on the tailnet.
@@ -297,7 +305,7 @@ impl TSNet {
         if result != 0 {
             return Err(tailscale_error_msg(self.server)?);
         }
-        Ok(conn_out)
+        Ok(TailscaleConnection { fd: conn_out })
     }
 
     /// Returns the remote address (either ip4 or ip6)
@@ -315,7 +323,12 @@ impl TSNet {
         let server = self.server;
         let mut addr_out: [c_char; INET6_ADDRSTRLEN] = [0; INET6_ADDRSTRLEN];
         let result = unsafe {
-            bindings::tailscale_getremoteaddr(listener, conn, addr_out.as_mut_ptr(), addr_out.len())
+            bindings::tailscale_getremoteaddr(
+                listener,
+                conn.fd,
+                addr_out.as_mut_ptr(),
+                addr_out.len(),
+            )
         };
         if result != 0 {
             return Err(tailscale_error_msg(server)?);
