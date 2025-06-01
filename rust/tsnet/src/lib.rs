@@ -25,6 +25,7 @@ type TailscaleListener = i32;
 /// A TailscaleConnection is a connection to an address on the tailnet.
 ///
 /// It is a pipe(2) on which you can use read(2), write(2), and close(2).
+#[derive(Debug)]
 pub struct TailscaleConnection {
     pub fd: i32,
 }
