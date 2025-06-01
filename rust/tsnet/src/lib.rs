@@ -289,6 +289,7 @@ impl TSNet {
         Ok(conn_out)
     }
 
+    /// Closes a file descriptor.
     pub fn close_fd(fd: i32) -> Result<(), String> {
         let result = unsafe { libc::close(fd) };
         if result != 0 {
