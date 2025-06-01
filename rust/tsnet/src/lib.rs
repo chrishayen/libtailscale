@@ -174,6 +174,17 @@ impl TSNet {
         }
     }
 
+    /// Closes a file descriptor.
+    pub fn close_fd(&self, fd: i32) -> Result<(), String> {
+        let result = unsafe { bindings::tailscale_close(fd) };
+
+        if result != 0 {
+            Err(tailscale_error_msg(self.server)?)
+        } else {
+            Ok(())
+        }
+    }
+
     /// Connects the server to the tailnet.
     /// Calling this function is optional as it will be called by the first use
     /// of listen or dial on a server.
@@ -287,15 +298,6 @@ impl TSNet {
             return Err(tailscale_error_msg(self.server)?);
         }
         Ok(conn_out)
-    }
-
-    /// Closes a file descriptor.
-    pub fn close_fd(&self, fd: i32) -> Result<(), String> {
-        let result = unsafe { libc::close(fd) };
-        if result != 0 {
-            return Err(tailscale_error_msg(fd)?);
-        }
-        Ok(())
     }
 
     /// Returns the remote address (either ip4 or ip6)
