@@ -23,12 +23,12 @@ const INET6_ADDRSTRLEN: usize = 46;
 /// or its equivalent on a tailscale_listener to know if there is a connection
 /// read to accept.
 // Define TailscaleListenerBinding based on platform
-type TailscaleListener = OwnedFd;
+pub type TailscaleListener = OwnedFd;
 
 /// A TailscaleConnection is a connection to an address on the tailnet.
 ///
 /// It is a pipe(2) on which you can use read(2), write(2), and close(2).
-type TailscaleConnection = OwnedFd;
+pub type TailscaleConnection = OwnedFd;
 
 /// Represents a Tailscale server instance
 pub struct TSNet {
