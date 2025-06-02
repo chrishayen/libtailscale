@@ -1,5 +1,8 @@
 use bindings::{TailscaleBinding, TailscaleConnBinding, TailscaleListenerBinding};
-use std::ffi::{CStr, CString, c_char};
+use std::{
+    ffi::{CStr, CString, c_char},
+    os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd},
+};
 
 /// Raw bindings for libtailscale
 mod bindings {
@@ -20,21 +23,12 @@ const INET6_ADDRSTRLEN: usize = 46;
 /// or its equivalent on a tailscale_listener to know if there is a connection
 /// read to accept.
 // Define TailscaleListenerBinding based on platform
-type TailscaleListener = i32;
+type TailscaleListener = OwnedFd;
 
 /// A TailscaleConnection is a connection to an address on the tailnet.
 ///
 /// It is a pipe(2) on which you can use read(2), write(2), and close(2).
-#[derive(Debug)]
-pub struct TailscaleConnection {
-    pub fd: i32,
-}
-
-impl Drop for TailscaleConnection {
-    fn drop(&mut self) {
-        unsafe { libc::close(self.fd) };
-    }
-}
+type TailscaleConnection = OwnedFd;
 
 /// Represents a Tailscale server instance
 pub struct TSNet {
@@ -271,7 +265,7 @@ impl TSNet {
             return Err(tailscale_error_msg(server)?);
         }
 
-        Ok(listener_out)
+        Ok(unsafe { OwnedFd::from_raw_fd(listener_out) })
     }
 
     /// tailscale_accept accepts a connection on a tailscale_listener.
@@ -279,15 +273,16 @@ impl TSNet {
     /// It is the spiritual equivalent to accept(2).
     ///
     /// The newly allocated connection is written to conn_out.
-    pub fn accept(&self, listener: TailscaleListener) -> Result<TailscaleConnection, String> {
+    pub fn accept(&self, listener: BorrowedFd) -> Result<TailscaleConnection, String> {
         let mut conn_out: TailscaleConnBinding = -1;
-        let result = unsafe { bindings::tailscale_accept(listener, &mut conn_out) };
+        let fd = listener.as_fd();
+        let result = unsafe { bindings::tailscale_accept(fd.as_raw_fd(), &mut conn_out) };
 
         if result != 0 {
             return Err(tailscale_error_msg(self.server)?);
         }
 
-        Ok(TailscaleConnection { fd: conn_out })
+        Ok(unsafe { OwnedFd::from_raw_fd(conn_out) })
     }
 
     /// Connects to the address on the tailnet.
@@ -306,7 +301,7 @@ impl TSNet {
         if result != 0 {
             return Err(tailscale_error_msg(self.server)?);
         }
-        Ok(TailscaleConnection { fd: conn_out })
+        Ok(unsafe { OwnedFd::from_raw_fd(conn_out) })
     }
 
     /// Returns the remote address (either ip4 or ip6)
@@ -318,15 +313,18 @@ impl TSNet {
     /// ```
     pub fn get_remote_addr(
         &self,
-        conn: TailscaleConnection,
-        listener: TailscaleListener,
+        conn: BorrowedFd,
+        listener: BorrowedFd,
     ) -> Result<String, String> {
         let server = self.server;
         let mut addr_out: [c_char; INET6_ADDRSTRLEN] = [0; INET6_ADDRSTRLEN];
+        let listener_fd = listener.as_fd();
+        let conn_fd = conn.as_fd();
+
         let result = unsafe {
             bindings::tailscale_getremoteaddr(
-                listener,
-                conn.fd,
+                listener_fd.as_raw_fd(),
+                conn_fd.as_raw_fd(),
                 addr_out.as_mut_ptr(),
                 addr_out.len(),
             )
